@@ -1,107 +1,91 @@
-\documentclass[conference]{assets/latex/IEEEtran}
+\IfFileExists{assets/latex/IEEEtran.cls}
+  {\documentclass[conference]{assets/latex/IEEEtran}}
+  {\documentclass[conference]{IEEEtran}}  % overleaf has it built in
 \IEEEoverridecommandlockouts
-% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
-%Template version as of 6/27/2024
 
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{algorithmic}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{textcomp}
 \usepackage{xcolor}
-\usepackage[backend=biber,style=numeric]{biblatex}
-\addbibresource{assets/latex/report.bib} 
+\renewcommand{\ttdefault}{cmtt}  % courier is not installed everywhere
 
- \graphicspath{{assets/latex/}}
+\graphicspath{{assets/latex/}}
 
 \begin{document}
 
-\title{CS6524 Computer Vision Lab. 1\\ Silhouettes and Fourier Epicycles}
+\title{CS6524 Computer Vision Lab. 4\\ Optical Flow and Kalman Filters}
 
-\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-}
+\author{\IEEEauthorblockN{Dylan Teehan\\ Andrew Jaffray}}
 
 \maketitle
 
 \begin{abstract}
-Describe in few words the work done, the lessons learned, and results.
+We wanted to see how far we could get by assuming an object keeps moving at the same speed while it is hidden. We measured its motion with Lucas–Kanade optical flow and used a Kalman filter to predict where it would come out. We tested this on the three supplied clips and our own video was a golf ball we rolled behind a checkerboard. Our prediction was furthest off for the pen, where it predicted the pen was moving downwards instead of when it was actually moving straight accross, this is as the points we gauged got slowly cutoff making it harder to determine where it was moving.
 \end{abstract}
 
-\section{Introduction}
-This document contains some examples of basic {\LaTeX} functions.
+\section{Methodology}
 
-\subsection{Lists}
+\subsection{Pre-Proccessing}
+The supplied videos are $1280\times720$ at 25\,fps. Our golf ball clip is $478\times850$ at 30\,fps and lasts 60 frames. We struggled to track corners within the orange video as the checkerboard had more obvious corners than the orange.
 
-List can be bulleted\dots
-\begin{itemize}
-\item First
-\item Second
-\item Third
-\end{itemize}
 
-Or enumerated
+To fix this we did the following pre-proccessing:
 
 \begin{enumerate}
-\item First
-\item Second
-\item Third
+    \item We converted each frame to greyscale
+    \item Blurred each frame to reduce noise.
+    \item We compared each pair of consecutive frames and kept the areas where the brightness changed. We widened those areas slightly so we could still find corners near their edges.
+    \item We masked out the columns occupied by the checkerboard. i.e For the golf ball clip, we kept only the strip of table where the ball rolled.
+
 \end{enumerate}
 
-\subsection{Equations}
+We then used OpenCV’s \verb|goodFeaturesToTrack| to find corners in the remaining areas.
 
-Equations can have their own environment,
-\begin{equation}
-a+b=\gamma\label{eq}
-\end{equation}
-and be reference (Equation~\ref{eq}), or can be inline and blend in the text like this: $\sum_{i=0}^{N}x_i$, like any other word.
+\subsection{Optical flow and Kalman filter}
+We used pyramidal Lucas--Kanade with a 21-by-21 pixel window and a maximum pyramid level of three. The window fits the golf ball, and the pyramid helps with faster motion. We checked matches by tracking them backwards, then took the median position and displacement of the points moving together.
 
-\subsection{Figures and Tables}
+While the object is hidden, the Kalman filter predicts at constant velocity. We modelled process noise as random acceleration~\cite{kf} and set measurement noise from the spread of the tracked points. Near the board, we trusted the measured position less because the visible points shift towards the edge of the object.
 
-\begin{table}
-\caption{Table Type Styles}
-\begin{center}
-\begin{tabular}{|c|c|c|c|}
+After a gap, we use velocity to check whether the object is back. We then draw one track that takes new measurements and one that keeps predicting.
+
+\section{Results}
+
+We picked up all four objects again (Fig.~\ref{fig:tracks}). Table~\ref{tab:err} compares each prediction with the first accepted position, when the object could still be partly hidden.
+
+\begin{table}[H]
+\caption{Tracking results. Speeds are in px/frame.}
+\centering
+\begin{tabular}{|l|c|c|c|c|}
 \hline
-\textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
-\cline{2-4} 
-\textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
+ & \textbf{01} & \textbf{02} & \textbf{03} & \textbf{04} \\
 \hline
-copy& More table copy$^{\mathrm{a}}$& &  \\
+Frames without an update & 22 & 73 & 13 & 23 \\
+Speed going in & 12.2 & 1.7 & 14.9 & 14.5 \\
+Speed coming out & 11.9 & 2.8 & 9.9 & 8.8 \\
+Error without board rule (px) & 323 & 358 & 162 & 51 \\
+Error, final (px) & 134 & 252 & 133 & 60 \\
 \hline
-\multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
 \end{tabular}
-\label{tab1}
-\end{center}
+\label{tab:err}
 \end{table}
 
-\begin{figure}
-% Uncomment the line below to include an image from a source file
-\centerline{\includegraphics{fig1.png}}
-\caption{Example of a figure caption.}
-\label{fig}
+\begin{figure}[H]
+\centerline{\includegraphics[width=\columnwidth]{comeback.jpg}}
+\caption{Green dots show measurements, blue shows corrections, and yellow arrows show velocity. Predictions are red before reappearance and magenta afterwards.}
+\label{fig:tracks}
 \end{figure}
 
-They appear by default on top of the text, and you reference like this: Figure~\ref{fig} and Table~\ref{tab1}.
+\section{Discussion}
 
-\subsection{Citations}
+We tracked opposite edges of the orange before and after it went behind the board. That made it look like it had travelled farther than it had. Giving those positions less weight more than halved the error on the orange and helped on the potato. It made the golf ball slightly worse because the ball was already close to the board for several frames.
 
-If you need to cite external sources, use the \texttt{assets/latex/report.bib} file. As an example, here's how you cite the textbook~\cite{foundationsCVbook}.
+The pen came out moving faster than it went in. The golf ball slowed down, so the magenta prediction in Fig.~\ref{fig:tracks}(d) ran ahead of it. In the potato clip, the tracker picked up the hand first. We fixed that by starting once the potato was rolling on its own.
 
-\printbibliography
+Next time we would mark the object's centre once it was fully visible and measure the error against that point.
+
+\begin{thebibliography}{1}
+\bibitem{kf} A. Becker, ``Kalman Filter Tutorial,'' kalmanfilter.net.
+\end{thebibliography}
 
 \end{document}
