@@ -1,0 +1,9 @@
+%YAML:1.0
+---
+# checkerboard occluder columns (px), masked out of the flow
+board_x0: 140
+board_x1: 410
+# rows the object moves in (px)
+row_min: 420
+row_max: 600
+normalise_light: 1  # ceiling light flickers every 3 frames

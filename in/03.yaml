@@ -1,0 +1,10 @@
+%YAML:1.0
+---
+# checkerboard occluder columns (px), masked out of the flow
+board_x0: 512
+board_x1: 831
+# rows the object moves in (px)
+row_min: 0
+row_max: 720
+# the hand pushes the potato until here; track it once it rolls freely
+start_frame: 61

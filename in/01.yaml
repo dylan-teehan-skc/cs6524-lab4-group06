@@ -1,0 +1,8 @@
+%YAML:1.0
+---
+# checkerboard occluder columns (px), masked out of the flow
+board_x0: 320
+board_x1: 896
+# rows the object moves in (px)
+row_min: 0
+row_max: 720
