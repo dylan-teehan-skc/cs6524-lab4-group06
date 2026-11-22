@@ -4,7 +4,7 @@ from collections import deque
 import cv2 as cv
 import numpy as np
 
-from mypylibs.flow import MIN_SPEED, estimate_pos_and_velocity, motion_mask, track
+from mypylibs.flow import MIN_SPEED, measure_object, motion_mask, track
 from mypylibs.tracker import follow
 
 DEFAULTS = dict(diff_threshold=6, board_x0=0, board_x1=0, row_min=0, row_max=10_000,
@@ -57,10 +57,9 @@ def measure_and_draw_flow(name, cfg, fps):
             step = max(1, moving.sum() // MAX_ARROWS)
             for old, new in list(zip(old_points[moving], new_points[moving]))[::step]:
                 cv.arrowedLine(frame, point(old), point(old + 3 * (new - old)), GREEN, 1, tipLength=0.3)
-            found = estimate_pos_and_velocity(old_points, new_points)
-            if found:
-                z, std, _ = found
-                measurement = z, std
+            measurement = measure_object(old_points, new_points, cfg)
+            if measurement:
+                z = measurement[0]
                 cv.circle(frame, point(z), 10, RED, 2)
                 cv.arrowedLine(frame, point(z), point(z[:2] + ARROW_LENGTH * z[2:]), RED, 2, tipLength=0.3)
         measurements.append(measurement)
@@ -136,8 +135,7 @@ def run_one(name):
     steps, comeback = follow(measurements, cfg['sigma_a'])
     draw_trajectories(name, measurements, steps, fps)
     if comeback:
-        print(f"{name}: back at frame {comeback['frame']}, prediction error {comeback['error']:.0f} px "
-              f"(filter 1-sigma {comeback['sigma']:.0f} px)")
+        print(f"{name}: back at frame {comeback['frame']}, prediction error {comeback['error']:.0f} px")
     else:
         print(f'{name}: object never came back')
     return measurements, steps, comeback

@@ -5,6 +5,8 @@ LK = dict(winSize=(21, 21), maxLevel=3)
 MIN_SPEED = 1.5  # px/frame, the pen only moves ~2
 MIN_POINTS = 3
 FB_MAX = 1.0  # px, forward-backward error
+BOARD_MARGIN = 40  # px
+UNKNOWN = 1e4  # px, a position std so large the filter ignores it
 
 
 def track(prev_gray, cur_gray, mask=None):
@@ -27,7 +29,8 @@ def motion_mask(prev_gray, cur_gray, cfg):
     return mask
 
 
-def estimate_pos_and_velocity(p0, p1):
+def measure_object(p0, p1, cfg):
+    """Median position and velocity of the points moving with the object, and their spread."""
     velocities = p1 - p0
     is_moving = np.linalg.norm(velocities, axis=1) > MIN_SPEED
     points, velocities = p1[is_moving], velocities[is_moving]
@@ -42,4 +45,11 @@ def estimate_pos_and_velocity(p0, p1):
         return None
     z = np.r_[np.median(points, axis=0), np.median(velocities, axis=0)]
     std = np.r_[points.std(axis=0), velocities.std(axis=0)]
-    return z, std, points
+    if touches_board(points, cfg):  # only a strip of the object is visible: trust the velocity, not the median
+        std[:2] = UNKNOWN
+    return z, std
+
+
+def touches_board(points, cfg):
+    x = points[:, 0]
+    return bool(np.any((x > cfg['board_x0'] - BOARD_MARGIN) & (x < cfg['board_x1'] + BOARD_MARGIN)))
